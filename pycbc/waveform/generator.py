@@ -576,6 +576,68 @@ class FDomainDetFrameGenerator(object):
             h['RF'] = hp
         return h
 
+class FDomainDetFrameGeneratorNonGR(FDomainDetFrameGenerator):
+    # TODO: add following parameters to `parameters.py`
+    nongr_args = set(['logmagv', 'rav', 'decv'])
+
+    def __init__(self, rFrameGeneratorClass, epoch, detectors=None,
+                 variable_args=(), **frozen_params):
+        # temp store original frozen_params for after super.__init__()
+        local_frozen_params = frozen_params.copy()
+        # we'll separate out frozen non-GR parameters from the frozen
+        # parameters that are sent to the rframe generator
+        self.frozen_nongr_args = {}
+        ngr_params = set(frozen_params.keys()) & self.nongr_args
+        for param in ngr_params:
+            self.frozen_nongr_args[param] = frozen_params.pop(param)
+        # set the order of the variable parameters
+        self.variable_args = tuple(variable_args)
+        super(FDomainDetFrameGeneratorNonGR, self).\
+            __init__(rFrameGeneratorClass, epoch, detectors=detectors,
+                     variable_args=variable_args, **frozen_params)
+        self.current_params = local_frozen_params.copy()
+        self._static_args = local_frozen_params.copy()
+
+    # def generate(self, *args):
+    #     """Generates a waveform, applies a time shift and the detector response
+    #     function."""
+    #     self.current_params.update(dict(zip(self.variable_args, args)))
+    #     # FIXME: use the following when we switch to 2.7
+    #     #rfparams = {param: self.current_params[param]
+    #     #    for param in self.rframe_generator.variable_args}
+    #     rfparams = dict([(param, self.current_params[param])
+    #         for param in self.rframe_generator.variable_args])
+    #     hp, hc = self.rframe_generator.generate_from_kwargs(**rfparams)
+    #     hp._epoch = hc._epoch = self._epoch
+    #     h = {}
+    #     if 'tc' in self.current_params:
+    #         try:
+    #             kmin = int(self.current_params['f_lower']/hp.delta_f)
+    #         except KeyError:
+    #             kmin = 0
+    #     if self.detector_names != ['RF']:
+    #         for detname, det in self.detectors.items():
+    #             # apply detector response function
+    #             fp, fc = det.antenna_pattern(self.current_params['ra'],
+    #                         self.current_params['dec'],
+    #                         self.current_params['polarization'],
+    #                         self.current_params['tc'])
+    #             thish = fp*hp + fc*hc
+    #             # apply the time shift
+    #             tc = self.current_params['tc'] + \
+    #                 det.time_delay_from_earth_center(self.current_params['ra'],
+    #                                                  self.current_params['dec'],
+    #                                                  self.current_params['tc'])
+    #             h[detname] = apply_fd_time_shift(thish, tc, kmin=kmin, copy=False)
+    #     else:
+    #         # no detector response, just use the + polarization
+    #         if 'tc' in self.current_params:
+    #             hp = apply_fd_time_shift(hp, self.current_params['tc'],
+    #                         kmin=kmin, copy=False)
+    #         h['RF'] = hp
+    #     return h
+
+
 def select_waveform_generator(approximant):
     """ Returns the single-IFO generator for the approximant.
 

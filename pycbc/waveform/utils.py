@@ -402,8 +402,8 @@ def apply_fd_phase_shift_array(htilde, dpsis, kmin=0, copy=True):
     ----------
     htilde : FrequencySeries
         The waveform frequency series.
-    shifttime : float
-        The time to shift the frequency series to.
+    dpsis : array
+        Array of frequency-dependent phase shifts.
     kmin : {0, int}
         The starting index of htilde to apply the time shift. Default is 0.
     copy : {True, bool}
@@ -418,7 +418,7 @@ def apply_fd_phase_shift_array(htilde, dpsis, kmin=0, copy=True):
         the same as htilde.
     """
     htilde = htilde[kmin:]
-    shift = Array(numpy.exp(-2j*numpy.pi*dpsis[kmin:]), 
+    shift = Array(numpy.exp(-1j*dpsis[kmin:]),
                 dtype=complex_same_precision_as(htilde))
     if copy:
         htilde = 1. * htilde
