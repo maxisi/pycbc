@@ -394,3 +394,33 @@ def apply_fd_time_shift(htilde, shifttime, kmin=0, fseries=None, copy=True):
             htilde = 1. * htilde
         htilde *= shift
     return htilde
+
+def apply_fd_phase_shift_array(htilde, dpsis, kmin=0, copy=True):
+    """Shifts a frequency domain waveform in time.
+
+    Parameters
+    ----------
+    htilde : FrequencySeries
+        The waveform frequency series.
+    shifttime : float
+        The time to shift the frequency series to.
+    kmin : {0, int}
+        The starting index of htilde to apply the time shift. Default is 0.
+    copy : {True, bool}
+        Make a copy of htilde before applying the time shift. If False, the time
+        shift will be applied to htilde's data.
+
+    Returns
+    -------
+    FrequencySeries
+        A frequency series with the waveform shifted to the new time. If makecopy
+        is True, will be a new frequency series; if makecopy is False, will be
+        the same as htilde.
+    """
+    htilde = htilde[kmin:]
+    shift = Array(numpy.exp(-2j*numpy.pi*dpsis[kmin:]), 
+                dtype=complex_same_precision_as(htilde))
+    if copy:
+        htilde = 1. * htilde
+    htilde *= shift
+    return htilde
