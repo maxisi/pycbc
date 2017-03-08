@@ -30,10 +30,11 @@ import waveform
 import ringdown
 from pycbc import coordinates
 from pycbc.waveform import parameters
-from pycbc.waveform.utils import apply_fd_time_shift
+from pycbc.waveform.utils import apply_fd_time_shift, apply_fd_phase_shift_array
 from pycbc.detector import Detector
 from pycbc import pnutils
 import lal as _lal
+import numpy
 
 #
 #   Pregenerator functions for generator
@@ -585,57 +586,58 @@ class FDomainDetFrameGeneratorNonGR(FDomainDetFrameGenerator):
         # temp store original frozen_params for after super.__init__()
         local_frozen_params = frozen_params.copy()
         # we'll separate out frozen non-GR parameters from the frozen
-        # parameters that are sent to the rframe generator
+        # parameters that are sent to super.__init__()
+        # TODO: check all or none-nongr params passed
         self.frozen_nongr_args = {}
         ngr_params = set(frozen_params.keys()) & self.nongr_args
         for param in ngr_params:
             self.frozen_nongr_args[param] = frozen_params.pop(param)
         # set the order of the variable parameters
-        self.variable_args = tuple(variable_args)
+        local_variable_args = tuple(variable_args)
+        # usual GR-only variables
+        gr_variable_args = list(set(local_variable_args) - self.nongr_args)
+        # initialize the radiation frame generator
         super(FDomainDetFrameGeneratorNonGR, self).\
             __init__(rFrameGeneratorClass, epoch, detectors=detectors,
-                     variable_args=variable_args, **frozen_params)
+                     variable_args=gr_variable_args, **frozen_params)
         self.current_params = local_frozen_params.copy()
         self._static_args = local_frozen_params.copy()
+        self.variable_args = local_variable_args
 
-    # def generate(self, *args):
-    #     """Generates a waveform, applies a time shift and the detector response
-    #     function."""
-    #     self.current_params.update(dict(zip(self.variable_args, args)))
-    #     # FIXME: use the following when we switch to 2.7
-    #     #rfparams = {param: self.current_params[param]
-    #     #    for param in self.rframe_generator.variable_args}
-    #     rfparams = dict([(param, self.current_params[param])
-    #         for param in self.rframe_generator.variable_args])
-    #     hp, hc = self.rframe_generator.generate_from_kwargs(**rfparams)
-    #     hp._epoch = hc._epoch = self._epoch
-    #     h = {}
-    #     if 'tc' in self.current_params:
-    #         try:
-    #             kmin = int(self.current_params['f_lower']/hp.delta_f)
-    #         except KeyError:
-    #             kmin = 0
-    #     if self.detector_names != ['RF']:
-    #         for detname, det in self.detectors.items():
-    #             # apply detector response function
-    #             fp, fc = det.antenna_pattern(self.current_params['ra'],
-    #                         self.current_params['dec'],
-    #                         self.current_params['polarization'],
-    #                         self.current_params['tc'])
-    #             thish = fp*hp + fc*hc
-    #             # apply the time shift
-    #             tc = self.current_params['tc'] + \
-    #                 det.time_delay_from_earth_center(self.current_params['ra'],
-    #                                                  self.current_params['dec'],
-    #                                                  self.current_params['tc'])
-    #             h[detname] = apply_fd_time_shift(thish, tc, kmin=kmin, copy=False)
-    #     else:
-    #         # no detector response, just use the + polarization
-    #         if 'tc' in self.current_params:
-    #             hp = apply_fd_time_shift(hp, self.current_params['tc'],
-    #                         kmin=kmin, copy=False)
-    #         h['RF'] = hp
-    #     return h
+    def generate(self, *args):
+        hgr_dict = super(FDomainDetFrameGeneratorNonGR, self).generate(*args)
+        nongr_args = [arg in self.current_params for arg in self.nongr_args]
+        if all(nongr_args):
+            hgr = hgr_dict.values()[0]
+            freq = hgr.sample_frequencies
+            dist = self.current_params.get('distance',
+                                           parameters.distance.default)
+            ra = self.current_params['ra']
+            dec = self.current_params['dec']
+            logmagv = self.current_params['logmagv']
+            rav = self.current_params['rav']
+            decv = self.current_params['decv']
+            n = [numpy.cos(dec)*numpy.cos(ra), 
+                 numpy.cos(dec)*numpy.sin(ra),
+                 numpy.sin(dec)]
+            v = [numpy.cos(decv)*numpy.cos(rav),
+                 numpy.cos(decv)*numpy.sin(rav), 
+                 numpy.sin(decv)]
+            ndotv = numpy.dot(v, n)
+            dpsi = dist * _lal.C_SI * 10**logmagv * ndotv / (4.*numpy.pi*freq) 
+            h_dict = {}
+            if 'tc' in self.current_params:
+                try:
+                    kmin = int(self.current_params['f_lower']/hgr.delta_f)
+                except KeyError:
+                    kmin = 0
+            for detname, hgr in hgr_dict.iteritems():
+                h_dict[detname] = apply_fd_phase_shift_array(hgr, dpsi,
+                                                             kmin=kmin)
+        else:
+            h_dict = hgr_dict
+        return h_dict
+
 
 
 def select_waveform_generator(approximant):
