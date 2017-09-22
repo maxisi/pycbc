@@ -214,6 +214,7 @@ class WorkflowConfigParser(glue.pipeline.DeepCopyableConfigParser):
         self.populate_shared_sections()
 
         # Do deletes from command line
+        deleteTuples = deleteTuples or []
         for delete in deleteTuples:
             if len(delete) == 1:
                 if self.remove_section(delete[0]) is False:

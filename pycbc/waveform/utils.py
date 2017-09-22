@@ -417,8 +417,8 @@ def apply_fd_phase_shift_array(htilde, dpsis, kmin=0, copy=True):
         is True, will be a new frequency series; if makecopy is False, will be
         the same as htilde.
     """
-    htilde = htilde[kmin:]
-    shift = Array(numpy.exp(1j*dpsis[kmin:]),
+    dpsis[0:kmin] = 0
+    shift = Array(numpy.exp(1j*dpsis),
                 dtype=complex_same_precision_as(htilde))
     if copy:
         htilde = 1. * htilde

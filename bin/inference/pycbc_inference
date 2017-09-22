@@ -286,7 +286,8 @@ with ctx:
 
     # construct instance that will call single IFO waveform generator
     # and apply the antenna pattern and timing offsets
-    generator = generator.FDomainDetFrameGenerator(
+    # TODO: add --nongr flag to use non-GR generator
+    generator = generator.FDomainDetFrameGeneratorNonGR(
                         generator_function,
                         epoch=stilde_dict.values()[0].epoch,
                         variable_args=variable_args,

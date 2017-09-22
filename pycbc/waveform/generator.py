@@ -609,6 +609,10 @@ class FDomainDetFrameGeneratorNonGR(FDomainDetFrameGenerator):
         nongr_args = [arg in self.current_params for arg in self.nongr_args]
         if all(nongr_args):
             hgr = hgr_dict.values()[0]
+            try:
+                kmin = int(self.current_params['f_lower']/hgr.delta_f)
+            except KeyError:
+                kmin = 0
             freq = hgr.sample_frequencies
             dist = self.current_params.get('distance',
                                            parameters.distance.default)
@@ -624,13 +628,8 @@ class FDomainDetFrameGeneratorNonGR(FDomainDetFrameGenerator):
                  numpy.cos(decv)*numpy.sin(rav), 
                  numpy.sin(decv)]
             ndotv = numpy.dot(v, n)
-            dpsi = dist * _lal.C_SI * 10**logmagv * ndotv / (4.*numpy.pi*freq) 
+            dpsi = dist * _lal.C_SI**2 * 10**logmagv * ndotv / (4.*numpy.pi*freq)
             h_dict = {}
-            if 'tc' in self.current_params:
-                try:
-                    kmin = int(self.current_params['f_lower']/hgr.delta_f)
-                except KeyError:
-                    kmin = 0
             for detname, hgr in hgr_dict.iteritems():
                 h_dict[detname] = apply_fd_phase_shift_array(hgr, dpsi,
                                                              kmin=kmin)
